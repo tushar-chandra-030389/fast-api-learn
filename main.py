@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import (
     FastAPI,
-    Body,
     Response,
-    status
+    status,
+    HTTPException
 )
 from pydantic import BaseModel
 from random import randrange
@@ -46,11 +46,13 @@ def get_post(
     if result:
         return { "data": result[0] }
     else:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return {
-            "message": f"Post with ID:{post_id} not found!!!",
-            "data": []
-        }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "message": f"Post with ID:{post_id} not found!!!",
+                "data": []
+            }
+        )
 
 @app.post('/posts')
 def save_post(post: PostModel):
