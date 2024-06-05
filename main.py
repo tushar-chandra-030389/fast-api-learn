@@ -54,7 +54,10 @@ def get_post(
             }
         )
 
-@app.post('/posts')
+@app.post(
+    '/posts',
+    status_code=status.HTTP_201_CREATED
+)
 def save_post(post: PostModel):
     post_dict = post.model_dump()
     post_dict.update({ "id": randrange(1, 1000000) })
