@@ -66,3 +66,25 @@ def save_post(post: PostModel):
     return {
         "data": post_dict
     }
+
+@app.delete(
+    '/posts/{post_id}',
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_posts(post_id: int):
+    index = None
+    search_result = [i for i, v in enumerate(dummy_db['post']) if v['id'] == post_id]
+
+    if search_result:
+        index = search_result[0]
+        dummy_db['post'].pop(index)
+
+    if not index is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "message": f"Post with ID:{post_id} not found!!!",
+        }
+    )
