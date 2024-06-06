@@ -8,13 +8,19 @@ from fastapi import (
     FastAPI,
     Response,
     status,
-    HTTPException
+    HTTPException,
+    Depends
 )
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from sqlalchemy.orm import Session
 
-app = FastAPI()
+from . import models
+from .database import engine, get_db
+
+models.Base.metadata.create_all(bind=engine)
+
 
 def shutdown_server():
     os.kill(os.getpid(), signal.SIGINT)
@@ -52,6 +58,14 @@ class PostModelPartial(BaseModel):
     content: str | None = None
     published: bool | None = None
     rating: int | None = None
+
+app = FastAPI()
+
+@app.get('/sqlalchemy')
+def sqlalchemy(db: Annotated[Session, Depends(get_db)]):
+    print(db)
+    return { 'status': 'success' }
+
 
 @app.get('/')
 def root():
