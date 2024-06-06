@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, List
 from random import randrange
 import time
 import os
@@ -53,14 +53,18 @@ app = FastAPI()
 def root():
     return { 'message': 'welcome to the API' }
 
-@app.get('/posts')
+@app.get(
+    '/posts',
+    response_model=List[schema.PostResponseMode]
+)
 def get_posts(db: Annotated[Session, Depends(get_db)]):
     posts = db.query(models.Post).all()
-    return {
-        'data': posts
-    }
+    return posts
 
-@app.get('/posts/{post_id}') # Path parameter
+@app.get(
+    '/posts/{post_id}',
+    response_model=schema.PostResponseMode
+) # Path parameter
 def get_post(
     post_id: int,
     db: Annotated[Session, Depends(get_db)]
@@ -69,19 +73,19 @@ def get_post(
     result =db.query(models.Post).filter(models.Post.id == post_id).first()
 
     if result:
-        return { "data": result }
+        return result
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "message": f"Post with ID:{post_id} not found!!!",
-                "data": []
             }
         )
 
 @app.post(
     '/posts',
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    response_model=schema.PostResponseMode
 )
 def save_post(
     payload: schema.PostModel,
@@ -92,7 +96,7 @@ def save_post(
     db.commit()
     db.refresh(new_post)
 
-    return { "data": new_post }
+    return new_post
 
 @app.delete(
     '/posts/{post_id}',
@@ -114,7 +118,10 @@ def delete_posts(
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
 
-@app.put('/posts/{post_id}')
+@app.put(
+    '/posts/{post_id}',
+    response_model=schema.PostResponseMode
+)
 def update_post(
     post_id: int,
     payload: schema.PostModel,
@@ -132,9 +139,12 @@ def update_post(
     post_query.update({**payload.model_dump()}, synchronize_session=False) 
     db.commit()
 
-    return { "data": post_query.first() }
+    return post_query.first()
 
-@app.patch('/posts/{post_id}')
+@app.patch(
+    '/posts/{post_id}',
+    response_model=schema.PostResponseMode
+)
 def patch_post(
     post_id: int,
     payload: schema.PostModelPartial,
@@ -152,4 +162,4 @@ def patch_post(
     post_query.update({**update}, synchronize_session=False)
     db.commit()
 
-    return { "data": post_query.first() }
+    return post_query.first()
