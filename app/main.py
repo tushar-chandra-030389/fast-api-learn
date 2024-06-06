@@ -1,4 +1,8 @@
 from typing import Annotated
+from random import randrange
+import time
+import os
+import signal
 
 from fastapi import (
     FastAPI,
@@ -7,7 +11,8 @@ from fastapi import (
     HTTPException
 )
 from pydantic import BaseModel
-from random import randrange
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
@@ -20,6 +25,31 @@ dummy_db = {
 }
 
 posts_db_data = dummy_db['post']
+
+def shutdown_server():
+    os.kill(os.getpid(), signal.SIGINT)
+    print('Shutting down server')
+
+DB_ATTEMPT_COUNTER = 0
+while DB_ATTEMPT_COUNTER <= 2:
+    try:
+        DB_ATTEMPT_COUNTER = DB_ATTEMPT_COUNTER + 1
+        db_connection = psycopg2.connect(
+            host='localhost',
+            dbname='fastapi',
+            user='postgres',
+            password='root',
+            cursor_factory=RealDictCursor
+        )
+        db_cursor = db_connection.cursor()
+        print('DB Connection successful!!!')
+        break
+    except psycopg2.Error as e:
+        print('DB Connection failed!!!')
+        print(e)
+        if DB_ATTEMPT_COUNTER >= 2:
+            shutdown_server()
+        time.sleep(2)
 
 class PostModel(BaseModel):
     title: str
