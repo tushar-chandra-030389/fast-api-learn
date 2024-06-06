@@ -16,7 +16,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from sqlalchemy.orm import Session
 
-from . import models
+from . import models, schema
 from .database import engine, get_db
 
 models.Base.metadata.create_all(bind=engine)
@@ -47,44 +47,26 @@ while DB_ATTEMPT_COUNTER <= 2:
             shutdown_server()
         time.sleep(2)
 
-class PostModel(BaseModel):
-    title: str
-    content: str
-    published: bool = True
-    rating: int | None = None
-
-class PostModelPartial(BaseModel):
-    title: str | None = None
-    content: str | None = None
-    published: bool | None = None
-    rating: int | None = None
-
 app = FastAPI()
-
-@app.get('/sqlalchemy')
-def sqlalchemy(db: Annotated[Session, Depends(get_db)]):
-    print(db)
-    return { 'status': 'success' }
-
 
 @app.get('/')
 def root():
     return { 'message': 'welcome to the API' }
 
 @app.get('/posts')
-def get_posts():
-    db_cursor.execute('''SELECT * FROM public.post''')
-    posts = db_cursor.fetchall()
-    
+def get_posts(db: Annotated[Session, Depends(get_db)]):
+    posts = db.query(models.Post).all()
     return {
         'data': posts
     }
 
 @app.get('/posts/{post_id}') # Path parameter
-def get_post(post_id: int):
-    db_cursor.execute('''SELECT * FROM public.post WHERE id = %s ''', (post_id, ))
-    result = db_cursor.fetchone()
-    print(result)
+def get_post(
+    post_id: int,
+    db: Annotated[Session, Depends(get_db)]
+):
+    # result = db.query(models.Post).get(post_id)
+    result =db.query(models.Post).filter(models.Post.id == post_id).first()
 
     if result:
         return { "data": result }
@@ -101,92 +83,73 @@ def get_post(post_id: int):
     '/posts',
     status_code=status.HTTP_201_CREATED
 )
-def save_post(payload: PostModel):
-    db_cursor.execute(
-        '''INSERT INTO public.post (title, "content", published) VALUES (%s, %s, %s) RETURNING *''',
-        (payload.title, payload.content, payload.published)
-    )
-    post = db_cursor.fetchone()
-    db_connection.commit()
-    return { "data": post }
+def save_post(
+    payload: schema.PostModel,
+    db: Annotated[Session, Depends(get_db)]
+):
+    new_post = models.Post(**payload.model_dump())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    return { "data": new_post }
 
 @app.delete(
     '/posts/{post_id}',
     status_code=status.HTTP_204_NO_CONTENT
 )
-def delete_posts(post_id: int):
-    try:
-        db_cursor.execute('''
-            DELETE FROM public.post WHERE id = %s
-        ''', (post_id, ))
-        db_connection.commit()
-    except psycopg2.Error as ex:
-        raise ex
+def delete_posts(
+    post_id: int,
+    db: Annotated[Session, Depends(get_db)]
+):
+    post = db.query(models.Post).filter(models.Post.id == post_id)
 
-    rows_deleted = db_cursor.rowcount # get effected rows
-
-    if (rows_deleted == 0):
+    if post.first() is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
     else:
+        post.delete(synchronize_session=False)
+        db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
-
 
 @app.put('/posts/{post_id}')
 def update_post(
     post_id: int,
-    payload: PostModel
+    payload: schema.PostModel,
+    db: Annotated[Session, Depends(get_db)]
 ):
-    db_cursor.execute('''
-        UPDATE public.post SET
-            title=%s, "content"=%s, published=%s
-            WHERE id = %s RETURNING *
-    ''', (payload.title, payload.content, payload.published, post_id))
-    updated_post = db_cursor.fetchone()
-    rows_effected = db_cursor.rowcount
-    db_connection.commit()
+    post_query = db.query(models.Post).filter(models.Post.id == post_id)
+    post = post_query.first()
 
-    if rows_effected == 0:
+    if post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
-    
-    return { "data": updated_post }
+
+    post_query.update({**payload.model_dump()}, synchronize_session=False) 
+    db.commit()
+
+    return { "data": post_query.first() }
 
 @app.patch('/posts/{post_id}')
 def patch_post(
     post_id: int,
-    payload: PostModelPartial
+    payload: schema.PostModelPartial,
+    db: Annotated[Session, Depends(get_db)]
 ):
-    payload_keys = payload.model_dump(exclude_unset=True).keys()
-    payload_values = payload.model_dump(exclude_unset=True).values()
+    post_query = db.query(models.Post).filter(models.Post.id == post_id)
 
-    set_clauses = []
-
-    for k in payload_keys:
-        set_clauses.append(f'{k}=%s')
-
-    set_clause = ', '.join(set_clauses)
-
-    query = f'UPDATE public.post SET {set_clause} WHERE id=%s RETURNING *'
-    values_tuple = tuple(payload_values) + (post_id, )
-    print(query, values_tuple)
-
-    try:
-        db_cursor.execute(query, values_tuple)
-        patched_post = db_cursor.fetchone()
-        db_connection.commit()
-        updated_rows = db_cursor.rowcount
-    except psycopg2.Error as er:
-        raise er
-
-    if updated_rows == 0:
+    if post_query.first() is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
-    else:
-        return { "data": patched_post }
+
+    update = payload.model_dump(exclude_unset=True)
+    post_query.update({**update}, synchronize_session=False)
+    db.commit()
+
+    return { "data": post_query.first() }
