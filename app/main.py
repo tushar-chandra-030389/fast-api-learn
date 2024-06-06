@@ -16,16 +16,6 @@ from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
-dummy_db = {
-    "post": [
-        { "id": 1, "title": "Title 1", "content": "Post content 1" },
-        { "id": 2, "title": "Title 2", "content": "Post content 2. Post content 2." },
-        { "id": 3, "title": "Title 3", "content": "Post content 3. Post content 3. Post content 3" }
-    ]
-}
-
-posts_db_data = dummy_db['post']
-
 def shutdown_server():
     os.kill(os.getpid(), signal.SIGINT)
     print('Shutting down server')
@@ -63,36 +53,27 @@ class PostModelPartial(BaseModel):
     published: bool | None = None
     rating: int | None = None
 
-def find_index(id: int):
-    index = None
-    data = posts_db_data
-    result = [i for i, v in enumerate(data) if v['id'] == id]
-
-    if result:
-        index = result[0]
-    
-    return index
-
-
 @app.get('/')
 def root():
     return { 'message': 'welcome to the API' }
 
 @app.get('/posts')
 def get_posts():
+    db_cursor.execute('''SELECT * FROM public.post''')
+    posts = db_cursor.fetchall()
+    
     return {
-        'data': posts_db_data
+        'data': posts
     }
 
 @app.get('/posts/{post_id}') # Path parameter
-def get_post(
-    post_id: int,
-    response: Response
-):
-    result = [i for i in posts_db_data if i['id'] == post_id]
+def get_post(post_id: int):
+    db_cursor.execute('''SELECT * FROM public.post WHERE id = %s ''', (post_id, ))
+    result = db_cursor.fetchone()
+    print(result)
 
     if result:
-        return { "data": result[0] }
+        return { "data": result }
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -106,70 +87,92 @@ def get_post(
     '/posts',
     status_code=status.HTTP_201_CREATED
 )
-def save_post(post: PostModel):
-    post_dict = post.model_dump()
-    post_dict.update({ "id": randrange(1, 1000000) })
-    dummy_db['post'].append(post_dict)
-
-    return { "data": post_dict }
+def save_post(payload: PostModel):
+    db_cursor.execute(
+        '''INSERT INTO public.post (title, "content", published) VALUES (%s, %s, %s) RETURNING *''',
+        (payload.title, payload.content, payload.published)
+    )
+    post = db_cursor.fetchone()
+    db_connection.commit()
+    return { "data": post }
 
 @app.delete(
     '/posts/{post_id}',
     status_code=status.HTTP_204_NO_CONTENT
 )
 def delete_posts(post_id: int):
-    index = find_index(post_id)
-    
-    if not index is None:
-        posts_db_data.pop(index)
+    try:
+        db_cursor.execute('''
+            DELETE FROM public.post WHERE id = %s
+        ''', (post_id, ))
+        db_connection.commit()
+    except psycopg2.Error as ex:
+        raise ex
+
+    rows_deleted = db_cursor.rowcount # get effected rows
+
+    if (rows_deleted == 0):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={ "message": f"Post with ID:{post_id} not found!!!" }
+        )
+    else:
         return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail={ "message": f"Post with ID:{post_id} not found!!!" }
-    )
 
 @app.put('/posts/{post_id}')
 def update_post(
     post_id: int,
     payload: PostModel
-): 
-    index = find_index(post_id)
+):
+    db_cursor.execute('''
+        UPDATE public.post SET
+            title=%s, "content"=%s, published=%s
+            WHERE id = %s RETURNING *
+    ''', (payload.title, payload.content, payload.published, post_id))
+    updated_post = db_cursor.fetchone()
+    rows_effected = db_cursor.rowcount
+    db_connection.commit()
 
-    if index is None:
+    if rows_effected == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
-
-    posts_db_data.pop(index)
-
-    post_data = payload.model_dump()
-    post_data.update({ "id": post_id })
-
-    posts_db_data.append(post_data)
-
-    return { "data": post_data }
+    
+    return { "data": updated_post }
 
 @app.patch('/posts/{post_id}')
 def patch_post(
     post_id: int,
     payload: PostModelPartial
 ):
-    index = find_index(post_id)
+    payload_keys = payload.model_dump(exclude_unset=True).keys()
+    payload_values = payload.model_dump(exclude_unset=True).values()
 
-    if index is None:
+    set_clauses = []
+
+    for k in payload_keys:
+        set_clauses.append(f'{k}=%s')
+
+    set_clause = ', '.join(set_clauses)
+
+    query = f'UPDATE public.post SET {set_clause} WHERE id=%s RETURNING *'
+    values_tuple = tuple(payload_values) + (post_id, )
+    print(query, values_tuple)
+
+    try:
+        db_cursor.execute(query, values_tuple)
+        patched_post = db_cursor.fetchone()
+        db_connection.commit()
+        updated_rows = db_cursor.rowcount
+    except psycopg2.Error as er:
+        raise er
+
+    if updated_rows == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
-    
-    current_post = posts_db_data[index]
-    
-    post = payload.model_dump()
-    post = payload.model_dump(exclude_unset=True) # Note this exclude_unset
-    
-    current_post.update(post)
-
-    return { "data": current_post }
-    
+    else:
+        return { "data": patched_post }
