@@ -9,7 +9,9 @@ from sqlalchemy.orm import sessionmaker
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-SQLALCHEMY_DATABASE_URL = 'postgresql://postgres:root@localhost/fastapi'
+from app.config import config
+
+SQLALCHEMY_DATABASE_URL = f'postgresql://{config.database_username}:{config.database_password}@{config.database_hostname}/{config.database_name}'
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 

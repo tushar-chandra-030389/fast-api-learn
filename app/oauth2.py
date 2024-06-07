@@ -10,11 +10,12 @@ from sqlalchemy.orm import Session
 import app.schema as schema
 import app.models as models
 import app.database as database
+from app.config import config
 
 # openssl rand -hex 32
-SECRET_KEY = '16b032d1cf1dba6876ff05b3126715910f8834189105dffa27016693ebaf0a04'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = config.secret_key
+ALGORITHM = config.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = config.token_expire_minutes
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 
