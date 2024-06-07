@@ -20,9 +20,16 @@ router = APIRouter(
 )
 def get_posts(
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[models.User, Depends(dep_get_current_user)]
+    current_user: Annotated[models.User, Depends(dep_get_current_user)],
+    limit: int = 10,
+    page: int = 1,
+    search: str = ''
 ):
-    posts = db.query(models.Post).all()
+    look_for = '%{0}%'.format(search)
+    posts = db.query(models.Post)\
+        .filter(models.Post.title.ilike(look_for))\
+        .limit(limit)\
+        .offset(None if page == 0 else (page - 1) * limit)
     return posts
 
 @router.get(
