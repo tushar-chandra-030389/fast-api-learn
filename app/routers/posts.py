@@ -2,6 +2,7 @@ from typing import Annotated, List
 
 from fastapi import Depends, HTTPException, status, Response, APIRouter
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 import app.models as models
 import app.schema as schema
@@ -56,10 +57,21 @@ def save_post(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
-    new_post = models.Post(**payload.model_dump())
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
+    try:
+        if payload.user_id is not None:
+            new_post = models.Post(**payload.model_dump(exclude_unset=True))
+        else:
+            new_post = models.Post(user_id=current_user.id, **payload.model_dump(exclude_unset=True))
+
+        db.add(new_post)
+        print(new_post)
+        db.commit()
+        db.refresh(new_post)
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database error"
+        ) from e
 
     return new_post
 
@@ -80,9 +92,16 @@ def delete_posts(
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
     else:
-        post.delete(synchronize_session=False)
-        db.commit()
-        return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
+        result = post.first()
+        if result.user_id == current_user.id:
+            post.delete(synchronize_session=False)
+            db.commit()
+            return Response(status_code=status.HTTP_204_NO_CONTENT) # send no data back when 204 is the status code
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You can't delete this post!!!"
+        )
 
 @router.put(
     '/{post_id}',
@@ -102,8 +121,14 @@ def update_post(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
         )
+    
+    if post.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You can't update this post!!!"
+        )
 
-    post_query.update({**payload.model_dump()}, synchronize_session=False) 
+    post_query.update({**payload.model_dump(exclude_defaults=True)}, synchronize_session=False) 
     db.commit()
 
     return post_query.first()
@@ -124,6 +149,12 @@ def patch_post(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={ "message": f"Post with ID:{post_id} not found!!!" }
+        )
+
+    if post_query.first().user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You can't update this post!!!"
         )
 
     update = payload.model_dump(exclude_unset=True)
