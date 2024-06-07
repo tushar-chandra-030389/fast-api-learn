@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 import app.models as models
 import app.schema as schema
 from app.database import get_db
+from app.oauth2 import dep_get_current_user
 
 router = APIRouter(
     prefix='/posts',
@@ -16,7 +17,10 @@ router = APIRouter(
     '',
     response_model=List[schema.PostResponseMode]
 )
-def get_posts(db: Annotated[Session, Depends(get_db)]):
+def get_posts(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
+):
     posts = db.query(models.Post).all()
     return posts
 
@@ -26,7 +30,8 @@ def get_posts(db: Annotated[Session, Depends(get_db)]):
 ) # Path parameter
 def get_post(
     post_id: int,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     # result = db.query(models.Post).get(post_id)
     result =db.query(models.Post).filter(models.Post.id == post_id).first()
@@ -48,7 +53,8 @@ def get_post(
 )
 def save_post(
     payload: schema.PostModel,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     new_post = models.Post(**payload.model_dump())
     db.add(new_post)
@@ -63,7 +69,8 @@ def save_post(
 )
 def delete_posts(
     post_id: int,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     post = db.query(models.Post).filter(models.Post.id == post_id)
 
@@ -84,7 +91,8 @@ def delete_posts(
 def update_post(
     post_id: int,
     payload: schema.PostModel,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     post_query = db.query(models.Post).filter(models.Post.id == post_id)
     post = post_query.first()
@@ -107,7 +115,8 @@ def update_post(
 def patch_post(
     post_id: int,
     payload: schema.PostModelPartial,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     post_query = db.query(models.Post).filter(models.Post.id == post_id)
 

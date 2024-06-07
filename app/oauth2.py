@@ -42,8 +42,8 @@ def verify_access_token(token: str, outh_exception: Exception):
         model = schema.TokenPayload(id=payload['id'])
 
         return model
-    except:
-        raise outh_exception
+    except InvalidTokenError:
+        raise outh_exception from InvalidTokenError
     
 def dep_get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],

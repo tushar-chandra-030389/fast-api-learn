@@ -19,4 +19,7 @@ class User(Base):
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    
+
+    def get_details(self):
+        return { col.name: getattr(self, col.name) for col in self.__table__.columns if col.name != 'password' }
+       
