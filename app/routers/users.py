@@ -7,6 +7,7 @@ import app.models as models
 import app.schema as schema
 import app.security as security
 from app.database import get_db
+from app.oauth2 import dep_get_current_user
 
 router = APIRouter(
     prefix='/users',
@@ -32,6 +33,13 @@ def create_user(
     db.refresh(user_model)
 
     return user_model
+
+@router.get(
+    '/me',
+    response_model=schema.UserResponse
+)
+def get_current_user(current_user: Annotated[models.User, Depends(dep_get_current_user)]):
+    return current_user
 
 @router.get(
     '/{user_id}',

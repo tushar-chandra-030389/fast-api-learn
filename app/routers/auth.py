@@ -18,7 +18,8 @@ router = APIRouter(
  
 
 @router.post(
-    '/login'
+    '/login',
+    response_model=schema.TokenResponse
 )
 def login(
     payload: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
@@ -29,7 +30,7 @@ def login(
 
     if user_model is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid user or password."
         )
     
@@ -37,10 +38,11 @@ def login(
 
     if is_pass_valid is False:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid user or password."
         )
 
-    token = oauth2.create_token({ "id": user_model.id })
+    token_payload = schema.TokenPayload(id=str(user_model.id))
+    token = oauth2.create_token(token_payload)
 
-    return { "access_token": token, "token_type": "bearer" }
+    return { "access_token": token }

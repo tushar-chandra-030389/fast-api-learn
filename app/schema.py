@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
+from pydantic import BaseModel, EmailStr
+from typing import Literal
 class PostModel(BaseModel):
     title: str
     content: str
@@ -14,7 +15,7 @@ class PostResponseMode(PostModel):
     id: int
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_orm = True
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -24,8 +25,16 @@ class UserResponse(BaseModel):
     email: EmailStr
 
     class Config:
-        orm_mode = True
+        from_orm = True
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: Literal['bearer'] = 'bearer'
+
+class TokenPayload(BaseModel):
+    id: str | None = None
