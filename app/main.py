@@ -8,7 +8,7 @@ from psycopg2.extras import RealDictCursor
 
 import app.models as models
 from app.database import engine
-from app.routers import posts, users
+from app.routers import posts, users, auth
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -45,6 +45,10 @@ tags_metadata = [
         "description": "Basic config routes!!!",
     },
     {
+        "name": "authentication",
+        "description": "Authentication routes!!!",
+    },
+    {
         "name": "users",
         "description": "Operations with users. The **login** logic is also here.",
     },
@@ -60,6 +64,7 @@ app = FastAPI(
 
 app.include_router(users.router)
 app.include_router(posts.router)
+app.include_router(auth.router)
 
 @app.get(
     '/',
