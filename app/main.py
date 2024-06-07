@@ -16,8 +16,9 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from sqlalchemy.orm import Session
 
-from . import models, schema
+from . import models, schema, security
 from .database import engine, get_db
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -163,3 +164,44 @@ def patch_post(
     db.commit()
 
     return post_query.first()
+
+##################  User ##################
+
+@app.post(
+    '/users',
+    status_code=status.HTTP_201_CREATED,
+    response_model=schema.UserResponse
+)
+def create_user(
+    payload: schema.UserCreate,
+    db: Annotated[Session, Depends(get_db)]
+):
+    payload_dict = payload.model_dump()
+    user_model = models.User(**payload_dict)
+
+    user_model.password = security.hash_password(str(user_model.password))
+
+    db.add(user_model)
+    db.commit()
+    db.refresh(user_model)
+
+    return user_model
+
+@app.get(
+    '/users/{user_id}',
+    response_model=schema.UserResponse
+)
+def get_user(
+    user_id: str,
+    db: Annotated[Session, Depends(get_db)]
+):
+    user_query = db.query(models.User).filter(models.User.id == user_id)
+    user = user_query.first()
+
+    if user:
+        return user
+    
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"User with id:{user_id} not found"
+    )
