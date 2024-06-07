@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status, HTTPException, Response
+from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, String
@@ -20,12 +21,10 @@ router = APIRouter(
     '/login'
 )
 def login(
-    payload: schema.UserLogin,
+    payload: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)],
     db: Annotated[Session, Depends(get_db)]
 ):
-    payload_dict = payload.model_dump()
-    
-    user_query = db.query(models.User).filter(models.User.email == payload.email)
+    user_query = db.query(models.User).filter(models.User.email == payload.username)
     user_model = user_query.first()
 
     if user_model is None:
