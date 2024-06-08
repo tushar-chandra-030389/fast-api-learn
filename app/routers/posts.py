@@ -1,8 +1,11 @@
 from typing import Annotated, List
 
 from fastapi import Depends, HTTPException, status, Response, APIRouter
+from fastapi.encoders import jsonable_encoder
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
 
 import app.models as models
 import app.schema as schema
@@ -16,7 +19,7 @@ router = APIRouter(
 
 @router.get(
     '',
-    response_model=List[schema.PostResponseMode]
+    response_model=List[schema.PostResponseModeWithVotes]
 )
 def get_posts(
     db: Annotated[Session, Depends(get_db)],
@@ -26,15 +29,26 @@ def get_posts(
     search: str = ''
 ):
     look_for = '%{0}%'.format(search)
-    posts = db.query(models.Post)\
+    
+    result = db.query(models.Post, func.count(models.Vote.post_id).label('votes'))\
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)\
         .filter(models.Post.title.ilike(look_for))\
+        .group_by(models.Post.id)\
         .limit(limit)\
-        .offset(None if page == 0 else (page - 1) * limit)
-    return posts
+        .offset(None if page == 0 else (page - 1) * limit)\
+        .all()
+
+    # No idea why FastAPI and SQLAclhemy can't do this on their own
+    r = []
+    for p, v in result:
+        model = schema.PostResponseModeWithVotes(posts=jsonable_encoder(p), votes=v)
+        r.append(model)
+
+    return r
 
 @router.get(
     '/{post_id}',
-    response_model=schema.PostResponseMode
+    response_model=schema.PostResponseModeWithVotes
 ) # Path parameter
 def get_post(
     post_id: int,
@@ -42,10 +56,15 @@ def get_post(
     current_user: Annotated[models.User, Depends(dep_get_current_user)]
 ):
     # result = db.query(models.Post).get(post_id)
-    result =db.query(models.Post).filter(models.Post.id == post_id).first()
+    result =db.query(models.Post, func.count(models.Vote.post_id).label('votes'))\
+        .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)\
+        .filter(models.Post.id == post_id)\
+        .group_by(models.Post.id)\
+        .first()
 
     if result:
-        return result
+        model = schema.PostResponseModeWithVotes(posts=jsonable_encoder(result[0]), votes=result[1])
+        return model
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

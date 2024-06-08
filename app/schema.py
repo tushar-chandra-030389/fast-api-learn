@@ -43,7 +43,24 @@ class PostModelPartial(BaseModel):
 class PostResponseMode(PostModel):
     id: int
     created_at: datetime
+    
     owner: UserResponse
+    class Config:
+        from_orm = True
+
+class PostModelOut(BaseModel):
+    title: str
+    content: str
+    published: bool = True
+    user_id: int
+    id: int
+    created_at: datetime
+    class Config:
+        from_orm = True
+
+class PostResponseModeWithVotes(BaseModel):
+    posts: PostModelOut
+    votes: int
     class Config:
         from_orm = True
 
