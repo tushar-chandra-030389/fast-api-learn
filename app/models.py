@@ -26,4 +26,12 @@ class User(Base):
 
     def get_details(self):
         return { col.name: getattr(self, col.name) for col in self.__table__.columns if col.name != 'password' }
-       
+
+class Vote(Base):
+    __tablename__ = 'vote'
+
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False, primary_key=True)
+    post_id = Column(Integer, ForeignKey('post.id', ondelete='CASCADE'), nullable=False, primary_key=True)
+    
+    user = relationship('User')
+    post = relationship('Post')

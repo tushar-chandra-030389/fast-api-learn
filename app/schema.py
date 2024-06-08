@@ -1,7 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
-from typing import Literal
+from pydantic import BaseModel, EmailStr, Field
+from pydantic.functional_validators import AfterValidator
 
+from typing import Literal, Annotated
+from . import schema_validators
 
 
 class UserCreate(BaseModel):
@@ -44,3 +46,20 @@ class PostResponseMode(PostModel):
     owner: UserResponse
     class Config:
         from_orm = True
+
+class VoteSubmit(BaseModel):
+    post_id: int
+    direction: Annotated[int, AfterValidator(schema_validators.vote_direction)]
+class Vote(BaseModel):
+    post_id: int
+    user_id: int
+
+    user: UserResponse
+    post: PostResponseMode
+
+    class Config:
+        from_orm= True
+
+
+class Message(BaseModel):
+    message: str
