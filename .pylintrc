@@ -1,2 +1,3 @@
 [MESSAGES]
 disable=missing-module-docstring
+disable=missing-class-docstring

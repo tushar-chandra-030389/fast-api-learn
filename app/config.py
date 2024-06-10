@@ -10,6 +10,8 @@ class Config(BaseSettings):
     algorithm: str
     token_expire_minutes: int
 
+    database_name_test: str
+
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
 
