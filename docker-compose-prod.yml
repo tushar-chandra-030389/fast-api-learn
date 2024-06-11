@@ -1,0 +1,52 @@
+services:
+  rest-server-service:
+    # image: rest-server:v1
+    image: <docker-repo-url>
+    # or sepcify the build
+    # build: .
+    depends_on:
+      - rest-server-db
+    links:
+      - "rest-server-db:db"
+    ports:
+      - 8000:8000
+    #env_file:
+    #  - ./.env
+    environment:
+      - DATABASE_HOSTNAME=db
+      - DATABASE_PORT=5432
+      - DATABASE_PASSWORD=root
+      - DATABASE_NAME=fastapi
+      - DATABASE_USERNAME=postgres
+      - SECRET_KEY=16b032d1cf1dba6876ff05b3126715910f8834189105dffa27016693ebaf0a04
+      - ALGORITHM=HS256
+      - TOKEN_EXPIRE_MINUTES=30
+    networks:
+      - rest-server-network
+    volumes:
+      - ./:/usr/src/app:ro # bind mount
+    # add reload for dev
+    command: uvicorn app.main:app --port 8000 --host=0.0.0.0 --reload
+  
+  rest-server-db:
+    image: postgres:16.3-alpine3.20
+    ports:
+      - 5431:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=fastapi
+      - POSTGRES_PASSWORD=root
+    networks:
+      - rest-server-network
+    volumes:
+      - reset-server-db-volume:/var/lib/postgresql/data
+
+  
+
+networks:
+  rest-server-network:
+    driver: bridge
+
+volumes:
+  reset-server-db-volume:
+    driver: local
