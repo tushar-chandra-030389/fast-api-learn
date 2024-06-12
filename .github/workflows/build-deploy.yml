@@ -38,9 +38,9 @@ jobs:
       rest-server-test_db:
         image: postgres
         env:
-          POSTGRES_USER: env.DATABASE_USERNAME
-          POSTGRES_DB: env.DATABASE_NAME_TEST
-          POSTGRES_PASSWORD: env.DATABASE_PASSWORD
+          POSTGRES_USER:  ${{env.DATABASE_USERNAME}}
+          POSTGRES_DB: ${{env.DATABASE_NAME_TEST}}
+          POSTGRES_PASSWORD: ${{env.DATABASE_PASSWORD}}
         ports:
           - env.DATABASE_PORT:5432
         options: >-
