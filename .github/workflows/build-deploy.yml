@@ -19,4 +19,4 @@ jobs:
       - name: pulling git repo
         uses: actions/checkout@v4
       - name: stay hi
-        run: echo "say hi"
+        uses: actions/setup-python@v5
