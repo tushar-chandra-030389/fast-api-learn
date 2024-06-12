@@ -1,0 +1,22 @@
+name: Build and deploy rest server
+
+on:
+  push:
+    branches:
+      - "main"
+      # mention other branches if any
+
+  pull_request:
+    branches:
+      - "main"
+
+# on: [ "push", "pull_request" ]
+
+jobs:
+  job1:
+    runs-on: ubuntu-20.04
+    steps: 
+      - name: pulling git repo
+        uses: actions/checkout@v4
+      - name: stay hi
+        run: echo "say hi"
