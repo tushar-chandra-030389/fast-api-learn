@@ -12,6 +12,8 @@ class Config(BaseSettings):
 
     database_name_test: str
 
+    env: str
+
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
 

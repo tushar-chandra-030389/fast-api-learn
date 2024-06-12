@@ -43,6 +43,8 @@ def retry(max_retries=3, on_exception=OperationalError, delay=2):
 
 time.sleep(5)
 
+engine = None
+
 @retry()
 def get_engine():
     engine = create_engine(SQLALCHEMY_DATABASE_URL)

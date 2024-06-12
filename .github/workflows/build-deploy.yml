@@ -26,29 +26,29 @@ jobs:
       DATABASE_HOSTNAME: ${{secrets.DATABASE_HOSTNAME}}
       DATABASE_PORT: ${{secrets.DATABASE_PORT}} 
       DATABASE_PASSWORD: ${{secrets.DATABASE_PASSWORD}}
-      DATABASE_NAME: ${{secrets.DATABASE_NAME}} 
+      DATABASE_NAME: ${{secrets.DATABASE_NAME}}
       DATABASE_USERNAME: ${{secrets.DATABASE_USERNAME}}
-      DATABASE_NAME_TEST: ${{secrets.DATABASE_NAME_TEST}} 
+      DATABASE_NAME_TEST: ${{secrets.DATABASE_NAME_TEST}}
       SECRET_KEY: ${{secrets.SECRET_KEY}}
       ALGORITHM: ${{secrets.ALGORITHM}} 
       TOKEN_EXPIRE_MINUTES: ${{secrets.TOKEN_EXPIRE_MINUTES}}
+      ENV: ${{secrets.ENV}}
     
     services:
       # label for service
-      rest-server-test_db:
+      rest_server_test_db:
         image: postgres
         env:
           POSTGRES_USER:  ${{env.DATABASE_USERNAME}}
           POSTGRES_DB: ${{env.DATABASE_NAME_TEST}}
           POSTGRES_PASSWORD: ${{env.DATABASE_PASSWORD}}
         ports:
-          - ${{env.DATABASE_PORT}}:5432
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        
 
     steps: 
       - name: Step 1 - pulling git repo
@@ -61,6 +61,10 @@ jobs:
         run: python3 -m pip install --upgrade pip
       - name: Step 4 - install dependencies
         run: pip install -r requirements.txt
+      # - name: Step 4.5 - Wait
+      #   uses: 1itachi/sleep-random@v1.0.0
+      #   with:
+      #     minutes: '1'
       - name: Step 5 - run unit tests
         run: |
           pip install pytest

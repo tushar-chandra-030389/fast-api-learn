@@ -2,10 +2,14 @@ from fastapi import (FastAPI)
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models as models
-from app.database import engine
+from app.database import get_engine
 from app.routers import posts, users, auth, votes
+from app.config import config
 
-models.Base.metadata.create_all(bind=engine)
+print(12345)
+print(config.env)
+if config.env != 'TEST':
+    models.Base.metadata.create_all(bind=get_engine())
 
 
 tags_metadata = [
