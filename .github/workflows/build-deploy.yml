@@ -1,5 +1,17 @@
 name: Build and deploy rest server
 
+env:
+  DATABASE_HOSTNAME: "localhost"
+  DATABASE_PORT: "5432"
+  DATABASE_PASSWORD: "root"
+  DATABASE_NAME: "fastapi"
+  DATABASE_USERNAME: "postgres"
+  DATABASE_NAME_TEST: "fastapi_test"
+  SECRET_KEY: "16b032d1cf1dba6876ff05b3126715910f8834189105dffa27016693ebaf0a04"
+  ALGORITHM: "HS256"
+  TOKEN_EXPIRE_MINUTES: "30"
+
+
 on:
   push:
     branches:
@@ -15,6 +27,8 @@ on:
 jobs:
   job1:
     runs-on: ubuntu-20.04
+  
+      
     steps: 
       - name: Step 1 - pulling git repo
         uses: actions/checkout@v4
@@ -26,3 +40,8 @@ jobs:
         run: python3 -m pip install --upgrade pip
       - name: Step 4 - install dependencies
         run: pip install -r requirements.txt
+      - name: Step 5 - run unit tests
+        run: |
+          pip install pytest
+          pytest -v -s --disable-warnings 
+
