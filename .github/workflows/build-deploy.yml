@@ -42,7 +42,7 @@ jobs:
           POSTGRES_DB: ${{env.DATABASE_NAME_TEST}}
           POSTGRES_PASSWORD: ${{env.DATABASE_PASSWORD}}
         ports:
-          - env.DATABASE_PORT:5432
+          - ${{env.DATABASE_PORT}}:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
