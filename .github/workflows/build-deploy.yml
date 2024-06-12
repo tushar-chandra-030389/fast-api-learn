@@ -1,9 +1,5 @@
 name: Build and deploy rest server
 
-
-
-
-
 on:
   push:
     branches:
@@ -17,7 +13,7 @@ on:
 # on: [ "push", "pull_request" ]
 
 jobs:
-  job1:
+  test-and-build-image:
     runs-on: ubuntu-20.04
 
     environment: TEST
@@ -53,6 +49,14 @@ jobs:
     steps: 
       - name: Step 1 - pulling git repo
         uses: actions/checkout@v4
+      - name: Step 1.1 - Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Step 2 - setup python
         uses: actions/setup-python@v5
         with:
@@ -66,7 +70,45 @@ jobs:
       #   with:
       #     minutes: '1'
       - name: Step 5 - run unit tests
+        id: docker_build
         run: |
           pip install pytest
           pytest -v -s --disable-warnings 
+      -
+        name: Step 6 - Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/rest-server:latest
+      - name: Step 7 - Output
+        run: echo ${{ steps.docker_build.outputs.digest }}
 
+  deploy-on-ec2:
+    needs: test-and-build-image
+    runs-on: ubuntu-20.04
+    environment: TEST
+    env:
+      PRIVATE_KEY: ${{ secrets.TEST_EC2_SSH_PRIVATE_KEY }}
+      HOSTNAME: ${{secrets.TEST_EC2_SSH_HOST}}
+      USER_NAME: ${{secrets.TEST_EC2_USER_NAME}}
+    steps:
+      - name: Step 1 - pulling git repo
+        uses: actions/checkout@v4
+      - name: Step 2 - Save private key on runner
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem && chmod 600 private_key.pem
+      # configure github ssh on EC2
+      # name id_ed25519.pub
+      # and move to authorized keys
+      # better solution is using AWS cli with IAM
+      - name: Step 3 - SSH to the EC2 and deploy
+        run: |
+            ssh -o StrictHostKeyChecking=no -i private_key.pem  ${USER_NAME}@${HOSTNAME} '
+              echo "Now we have got the access of EC2 and we will start the deploy ."
+              cd /home/ubuntu/rest-server/src
+              git fetch
+              git reset --hard origin/main
+              sudo systemctl restart rest-server
+            '
