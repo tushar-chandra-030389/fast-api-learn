@@ -16,7 +16,13 @@ jobs:
   job1:
     runs-on: ubuntu-20.04
     steps: 
-      - name: pulling git repo
+      - name: Step 1 - pulling git repo
         uses: actions/checkout@v4
-      - name: stay hi
+      - name: Step 2 - setup python
         uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' 
+      - name: Step 3 - update pip
+        run: python3 -m pip install --upgrade pip
+      - name: Step 4 - install dependencies
+        run: pip install -r requirements.txt
